@@ -67,13 +67,22 @@
     const readonly = CLOUD.configured && !CLOUD.admin;
     document.body.classList.toggle("cloud-readonly", readonly);
     const editable = !CLOUD.configured || CLOUD.admin;
-    ["settingsBtn", "addBtn"].forEach(id => {
+
+    const settings = document.getElementById("settingsBtn");
+    if (settings) settings.style.display = editable ? "" : "none";
+
+    ["addBtn", "mobileAddBtn"].forEach(id => {
       const el = document.getElementById(id);
-      if (el) el.style.display = editable ? "" : "none";
+      if (!el) return;
+      el.style.display = "";
+      el.title = editable ? "Tambah data" : "Login admin untuk menambah data";
+      el.setAttribute("aria-label", editable ? "Tambah data" : "Login admin untuk menambah data");
     });
+
     document.querySelectorAll(".edit-row").forEach(el => {
       el.style.display = editable ? "" : "none";
     });
+
     if (btn && CLOUD.user) {
       btn.title = CLOUD.admin
         ? `Admin: ${CLOUD.user.email || CLOUD.user.displayName || CLOUD.user.uid} • klik untuk keluar`
@@ -134,7 +143,12 @@
 
   openEdit = function (id) {
     if (CLOUD.configured && !CLOUD.admin) {
-      toast("Login admin diperlukan untuk mengubah data.");
+      if (!CLOUD.user) {
+        toast("Silakan login admin untuk menambah atau mengubah data.");
+        cloudButtonAction();
+      } else {
+        toast("Akun yang digunakan belum memiliki akses admin.");
+      }
       return;
     }
     return originalOpenEdit(id);
@@ -237,7 +251,7 @@
         if (user) {
           try {
             const adminSnap = await fs.getDoc(fs.doc(CLOUD.db, "admins", user.uid));
-            CLOUD.admin = adminSnap.exists() && adminSnap.data()?.active !== false;
+            CLOUD.admin = adminSnap.exists() && adminSnap.data()?.active === true;
           } catch (err) {
             console.warn("Admin check failed", err);
           }
