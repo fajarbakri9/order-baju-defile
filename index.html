@@ -93,7 +93,7 @@
       html=html.replace(sourceMatch[0],`const SOURCE_DATA=${JSON.stringify(source)};\n`);
     }
 
-    html=html.replaceAll("kaosDefileData","kaosDefileDataV6");
+    html=html.replace(/kaosDefileDataV\d+/g,"kaosDefileDataV7");
     html=html.replace('<option value="rank">Urut jabatan</option>','<option value="initial">Urutan tabel awal</option><option value="rank">Urut jabatan</option>');
     html=html.replace('if(sort==="totalDesc")return total(y)-total(x)||x.name.localeCompare(y.name,"id");\n   if(sort==="paid")return (+paid(y)-+paid(x))||(+x.rankWeight-+y.rankWeight);\n   return (+x.rankWeight-+y.rankWeight)||(+x.displayNo-+y.displayNo)||x.name.localeCompare(y.name,"id");','if(sort==="totalDesc")return total(y)-total(x)||(+x.originalNo-+y.originalNo);\n   if(sort==="paid")return (+paid(y)-+paid(x))||(+x.originalNo-+y.originalNo);\n   if(sort==="rank")return (+x.rankWeight-+y.rankWeight)||(+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");\n   return (+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");');
     html=html.replace('$("#sortSelect").value="rank"','$("#sortSelect").value="initial"');
@@ -104,6 +104,40 @@
     html=html.replace(' renderSizeBars(a);\n','');
     html=html.replace('else{data.push({...patch,id:"local-"+Date.now(),originalNo:"baru",displayNo:data.length+1})}','else{const nextNo=Math.max(0,...data.map(d=>Number(d.originalNo)||0))+1;data.push({...patch,id:"local-"+Date.now(),originalNo:nextNo,displayNo:nextNo})}');
     html=html.replace('const r=ws.addRow([i+1,d.name,rankName(d.rankWeight),','const r=ws.addRow([d.originalNo,d.name,rankName(d.rankWeight),');
+    html=html.replace('<button class="btn hide-sm" id="printBtn"','<button class="btn" id="printBtn"');
+
+    const mobileCss=`
+.mobile-action-dock{display:none}
+@media(max-width:860px){
+  .app{padding-bottom:112px!important}
+  .topbar{align-items:center!important;flex-wrap:wrap!important}
+  .brand{flex:1 1 auto}
+  .top-actions{flex:1 1 100%;justify-content:flex-start!important;overflow-x:auto;flex-wrap:nowrap!important;padding:2px 0 4px;scrollbar-width:none}
+  .top-actions::-webkit-scrollbar{display:none}
+  .top-actions .hide-sm{display:inline-flex!important}
+  .mobile-action-dock{position:fixed;left:10px;right:10px;bottom:max(10px,env(safe-area-inset-bottom));z-index:80;display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px;background:rgba(255,255,255,.94);border:1px solid rgba(214,224,233,.95);border-radius:18px;box-shadow:0 16px 44px rgba(20,45,75,.18);backdrop-filter:blur(16px);-webkit-backdrop-filter:blur(16px)}
+  .mobile-action-dock .dock-btn{min-height:48px;border:0;border-radius:13px;background:#f5f8fb;color:var(--primary);display:flex;align-items:center;justify-content:center;gap:7px;font-size:12px;font-weight:800;padding:8px}
+  .mobile-action-dock .dock-btn svg{width:19px;height:19px;stroke:currentColor;fill:none;stroke-linecap:round;stroke-linejoin:round;flex:0 0 auto}
+  .mobile-action-dock .dock-btn.primary{background:var(--primary);color:#fff;box-shadow:0 8px 20px rgba(15,76,129,.20)}
+  .mobile-action-dock .dock-btn:active{transform:translateY(1px)}
+}
+@media(max-width:560px){
+  .top-actions .btn{min-width:40px;min-height:40px;justify-content:center}
+  .mobile-action-dock .dock-btn .txt{display:inline!important}
+}
+@media(max-width:380px){
+  .mobile-action-dock{left:6px;right:6px;gap:5px;padding:6px}
+  .mobile-action-dock .dock-btn{font-size:11px;gap:5px;padding:7px 5px}
+}`;
+    html=html.replace('</style>',mobileCss+'</style>');
+
+    const dockMarkup=`<nav class="mobile-action-dock" aria-label="Aksi cepat">
+      <button class="dock-btn" id="mobileExportBtn" type="button" title="Download Excel"><svg viewBox="0 0 24 24" stroke-width="1.9"><path d="M12 3v12m0 0 4-4m-4 4-4-4"/><path d="M5 19h14"/></svg><span class="txt">Excel</span></button>
+      <button class="dock-btn" id="mobilePrintBtn" type="button" title="Cetak"><svg viewBox="0 0 24 24" stroke-width="1.9"><path d="M7 8V4h10v4M7 17H5a2 2 0 0 1-2-2v-4a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2v4a2 2 0 0 1-2 2h-2"/><path d="M7 14h10v6H7z"/></svg><span class="txt">Cetak</span></button>
+      <button class="dock-btn primary" id="mobileAddBtn" type="button" title="Tambah data"><svg viewBox="0 0 24 24" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg><span class="txt">Tambah</span></button>
+    </nav>`;
+    html=html.replace('<div class="toast" id="toast"></div>',dockMarkup+'<div class="toast" id="toast"></div>');
+    html=html.replace('$("#addBtn").onclick=()=>openEdit(null); $("#printBtn").onclick=()=>window.print();','$("#addBtn").onclick=()=>openEdit(null); $("#printBtn").onclick=()=>window.print(); $("#mobileAddBtn").onclick=()=>openEdit(null); $("#mobilePrintBtn").onclick=()=>window.print(); $("#mobileExportBtn").onclick=()=>$("#exportBtn").click();');
 
     const imageBytes=unpacked[root+"assets/kaos-defile.jpg"];
     if(imageBytes){
