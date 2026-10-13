@@ -35,6 +35,29 @@
     const htmlBytes=unpacked[root+"index.html"];
     if(!htmlBytes) throw new Error("Berkas halaman tidak ditemukan.");
     let html=new TextDecoder("utf-8").decode(htmlBytes);
+
+    const sourceMatch=html.match(/const SOURCE_DATA=(\[[\s\S]*?\]);\s*\n/);
+    if(sourceMatch){
+      let source=JSON.parse(sourceMatch[1]);
+      source=source.filter(d=>!String(d.name||"").toUpperCase().includes("HJ SUMARNI DINKOPUKM"));
+      const no41=source.find(d=>Number(d.originalNo)===41 && /PAK RAHMAN\s*\(BKD\)/i.test(String(d.name||"")));
+      if(no41){no41.note="L";no41.paid=true}
+      source.sort((a,b)=>(Number(a.originalNo)||9999)-(Number(b.originalNo)||9999)||String(a.name||"").localeCompare(String(b.name||""),"id"));
+      source.forEach((d,i)=>d.displayNo=Number(d.originalNo)||i+1);
+      html=html.replace(sourceMatch[0],`const SOURCE_DATA=${JSON.stringify(source)};\n`);
+    }
+
+    html=html.replaceAll("kaosDefileData","kaosDefileDataV4");
+    html=html.replace(
+      '<option value="rank">Urut jabatan</option>',
+      '<option value="initial">Urutan tabel awal</option><option value="rank">Urut jabatan</option>'
+    );
+    html=html.replace(
+      'if(sort==="paid")return (+paid(y)-+paid(x))||(+x.rankWeight-+y.rankWeight);\n   return (+x.rankWeight-+y.rankWeight)||(+x.displayNo-+y.displayNo)||x.name.localeCompare(y.name,"id");',
+      'if(sort==="paid")return (+paid(y)-+paid(x))||(+x.originalNo-+y.originalNo);\n   if(sort==="rank")return (+x.rankWeight-+y.rankWeight)||(+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");\n   return (+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");'
+    );
+    html=html.replace('$("#sortSelect").value="rank"','$("#sortSelect").value="initial"');
+
     const imageBytes=unpacked[root+"assets/kaos-defile.jpg"];
     if(imageBytes){
       let s="";
