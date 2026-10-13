@@ -111,6 +111,7 @@
       for(let i=0;i<imageBytes.length;i+=step) s+=String.fromCharCode.apply(null,imageBytes.subarray(i,i+step));
       html=html.split("assets/kaos-defile.jpg").join("data:image/jpeg;base64,"+btoa(s));
     }
+    html=html.replace("</body>",'<script src="firebase-config.js"></script><script src="cloud-sync.js"></script></body>');
     document.open(); document.write(html); document.close();
   })().catch(err=>{
     console.error(err);
