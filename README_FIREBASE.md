@@ -1,30 +1,41 @@
 # Aktivasi Sinkronisasi Realtime — Order Baju Defile
 
-Frontend sudah mendukung Firebase Firestore realtime dan login admin Google. GitHub Pages tetap dipakai sebagai hosting publik.
+Frontend sudah terhubung ke Firebase project **`visualizermaroa`** dan mendukung Cloud Firestore realtime serta login admin Google. GitHub Pages tetap dipakai sebagai hosting publik.
 
-## Yang perlu dibuat di Firebase Console
+## Status konfigurasi aplikasi
 
-1. Buat project Firebase baru menggunakan paket **Spark (gratis)**.
-2. Tambahkan **Web App**.
-3. Aktifkan **Cloud Firestore**.
-4. Aktifkan **Authentication → Sign-in method → Google**.
-5. Tambahkan domain `fajarbakri9.github.io` ke **Authentication → Settings → Authorized domains** bila belum otomatis tersedia.
-6. Salin konfigurasi Web App ke `firebase-config.js`.
-7. Terapkan isi `firestore.rules` sebagai Firestore Security Rules.
+- Firebase Web App: **terhubung**
+- Project ID: `visualizermaroa`
+- GitHub Pages: `https://fajarbakri9.github.io/order-baju-defile/`
+- Dokumen state: `apps/order-baju-defile`
+- Collection admin: `admins`
+
+## Yang masih perlu diaktifkan di Firebase Console
+
+1. Buka project **visualizermaroa**.
+2. Aktifkan **Cloud Firestore** bila belum aktif. Untuk lokasi database, gunakan lokasi yang paling sesuai dan jangan membuat database kedua untuk aplikasi ini.
+3. Aktifkan **Authentication → Sign-in method → Google**.
+4. Di **Authentication → Settings → Authorized domains**, pastikan `fajarbakri9.github.io` terdaftar.
+5. Terapkan isi file `firestore.rules` sebagai **Firestore Security Rules**, lalu Publish.
 
 ## Membuat admin pertama
 
-1. Buka halaman publik dan klik indikator status cloud untuk login Google sekali.
-2. Di Firebase Console buka **Authentication → Users** dan salin UID akun yang akan menjadi admin.
-3. Di Firestore buat collection `admins` dan document dengan ID persis UID tersebut.
-4. Isi minimal field `active: true`.
+1. Buka `https://fajarbakri9.github.io/order-baju-defile/`.
+2. Klik indikator cloud pada bagian atas dan login dengan akun Google yang akan menjadi admin.
+3. Di Firebase Console buka **Authentication → Users**, lalu salin UID akun tersebut.
+4. Di Firestore buat collection `admins`.
+5. Buat document dengan **Document ID persis UID** akun admin.
+6. Tambahkan field Boolean `active` = `true`.
+7. Refresh halaman dan login kembali.
 
-Setelah itu refresh halaman dan login kembali. Tombol edit/tambah/harga hanya tersedia bagi akun admin.
+Setelah admin aktif, data lokal awal akan dikirim ke dokumen `apps/order-baju-defile`. Perubahan berikutnya akan tersimpan ke Firestore dan perangkat lain yang membuka halaman akan menerima pembaruan realtime.
 
-## Data cloud
+## Model akses
 
-State aplikasi disimpan pada dokumen `apps/order-baju-defile`. Publik dapat membaca data realtime. Hanya UID yang mempunyai dokumen `admins/{uid}` yang dapat menulis.
+- **Publik:** dapat membaca data realtime, tidak dapat mengedit.
+- **Admin:** dapat tambah/edit/hapus data, mengubah harga, dan seluruh perubahan disinkronkan ke Firestore.
+- Hak tulis ditentukan oleh keberadaan dokumen `admins/{uid}` dan Firestore Security Rules, bukan oleh API key Web App.
 
-## Catatan biaya
+## Paket Firebase
 
-Arsitektur ini tidak memerlukan upgrade Blaze untuk skala kecil seperti daftar pesanan ini. Tetap pantau kuota Spark pada Firebase Console.
+Implementasi ini dirancang untuk tetap dapat digunakan pada paket **Spark/gratis** untuk skala daftar pesanan ini. Tidak ada Cloud Functions atau layanan berbayar yang diwajibkan.
