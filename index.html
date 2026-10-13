@@ -17,22 +17,44 @@
     <div class="bar"></div>
     <div class="error" id="error"></div>
   </main>
-  <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
   <script>
+  const inflateRaw=async bytes=>{
+    if(typeof DecompressionStream!=="function") throw new Error("Browser tidak mendukung dekompresi yang diperlukan.");
+    const ds=new DecompressionStream("deflate-raw");
+    const ab=await new Response(new Blob([bytes]).stream().pipeThrough(ds)).arrayBuffer();
+    return new Uint8Array(ab);
+  };
+  const unzip=async bytes=>{
+    const out={};
+    const dv=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength);
+    const dec=new TextDecoder("utf-8");
+    let p=0;
+    while(p+30<=bytes.length && dv.getUint32(p,true)===0x04034b50){
+      const flag=dv.getUint16(p+6,true), method=dv.getUint16(p+8,true);
+      const compressed=dv.getUint32(p+18,true), nameLen=dv.getUint16(p+26,true), extraLen=dv.getUint16(p+28,true);
+      if(flag&8) throw new Error("Format ZIP tidak didukung.");
+      const name=dec.decode(bytes.subarray(p+30,p+30+nameLen));
+      const start=p+30+nameLen+extraLen, end=start+compressed;
+      const body=bytes.subarray(start,end);
+      if(method===0) out[name]=body;
+      else if(method===8) out[name]=await inflateRaw(body);
+      else throw new Error("Metode kompresi tidak didukung.");
+      p=end;
+    }
+    return out;
+  };
   (async()=>{
-    const rev="2c5d8c815d0a4460f51fe1433abb89c979633caf";
-    const base=`https://raw.githubusercontent.com/fajarbakri9/order-baju-defile/${rev}/.build/site.part.`;
-    const partNames=["01","02","03","04","05"].map(n=>base+n);
+    const partNames=["01","02","03","04","05"].map(n=>`payload/site.part.${n}`);
     const parts=await Promise.all(partNames.map(async url=>{
       const r=await fetch(url,{cache:"no-store"});
-      if(!r.ok) throw new Error(`Gagal memuat data (${r.status})`);
+      if(!r.ok) throw new Error(`Gagal memuat data ${url} (${r.status})`);
       return r.text();
     }));
     const b64=parts.join("").replace(/\s+/g,"");
     const raw=atob(b64);
     const zipBytes=new Uint8Array(raw.length);
-    for(let i=0;i<raw.length;i++)zipBytes[i]=raw.charCodeAt(i);
-    const unpacked=fflate.unzipSync(zipBytes);
+    for(let i=0;i<raw.length;i++) zipBytes[i]=raw.charCodeAt(i);
+    const unpacked=await unzip(zipBytes);
     const root="order-baju-defile/";
     const htmlBytes=unpacked[root+"index.html"];
     if(!htmlBytes) throw new Error("Berkas halaman tidak ditemukan.");
@@ -71,15 +93,9 @@
       html=html.replace(sourceMatch[0],`const SOURCE_DATA=${JSON.stringify(source)};\n`);
     }
 
-    html=html.replaceAll("kaosDefileData","kaosDefileDataV5");
-    html=html.replace(
-      '<option value="rank">Urut jabatan</option>',
-      '<option value="initial">Urutan tabel awal</option><option value="rank">Urut jabatan</option>'
-    );
-    html=html.replace(
-      'if(sort==="totalDesc")return total(y)-total(x)||x.name.localeCompare(y.name,"id");\n   if(sort==="paid")return (+paid(y)-+paid(x))||(+x.rankWeight-+y.rankWeight);\n   return (+x.rankWeight-+y.rankWeight)||(+x.displayNo-+y.displayNo)||x.name.localeCompare(y.name,"id");',
-      'if(sort==="totalDesc")return total(y)-total(x)||(+x.originalNo-+y.originalNo);\n   if(sort==="paid")return (+paid(y)-+paid(x))||(+x.originalNo-+y.originalNo);\n   if(sort==="rank")return (+x.rankWeight-+y.rankWeight)||(+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");\n   return (+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");'
-    );
+    html=html.replaceAll("kaosDefileData","kaosDefileDataV6");
+    html=html.replace('<option value="rank">Urut jabatan</option>','<option value="initial">Urutan tabel awal</option><option value="rank">Urut jabatan</option>');
+    html=html.replace('if(sort==="totalDesc")return total(y)-total(x)||x.name.localeCompare(y.name,"id");\n   if(sort==="paid")return (+paid(y)-+paid(x))||(+x.rankWeight-+y.rankWeight);\n   return (+x.rankWeight-+y.rankWeight)||(+x.displayNo-+y.displayNo)||x.name.localeCompare(y.name,"id");','if(sort==="totalDesc")return total(y)-total(x)||(+x.originalNo-+y.originalNo);\n   if(sort==="paid")return (+paid(y)-+paid(x))||(+x.originalNo-+y.originalNo);\n   if(sort==="rank")return (+x.rankWeight-+y.rankWeight)||(+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");\n   return (+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");');
     html=html.replace('$("#sortSelect").value="rank"','$("#sortSelect").value="initial"');
     html=html.replace(' $("#paidProgress").style.width=pct+"%"; $("#paidMeta").textContent=`${paidRows.length} dari ${all.length} lunas`; $("#paidPct").textContent=pct+"%";\n','');
     html=html.replace('<td class="no">${i+1}</td>','<td class="no">${esc(d.originalNo)}</td>');
@@ -91,19 +107,15 @@
 
     const imageBytes=unpacked[root+"assets/kaos-defile.jpg"];
     if(imageBytes){
-      let s="";
-      const step=0x8000;
-      for(let i=0;i<imageBytes.length;i+=step)s+=String.fromCharCode.apply(null,imageBytes.subarray(i,i+step));
-      const dataUri="data:image/jpeg;base64,"+btoa(s);
-      html=html.split("assets/kaos-defile.jpg").join(dataUri);
+      let s=""; const step=0x8000;
+      for(let i=0;i<imageBytes.length;i+=step) s+=String.fromCharCode.apply(null,imageBytes.subarray(i,i+step));
+      html=html.split("assets/kaos-defile.jpg").join("data:image/jpeg;base64,"+btoa(s));
     }
-    document.open();
-    document.write(html);
-    document.close();
+    document.open(); document.write(html); document.close();
   })().catch(err=>{
     console.error(err);
     const el=document.getElementById("error");
-    if(el){el.style.display="block";el.textContent="Halaman gagal dimuat. Silakan muat ulang."}
+    if(el){el.style.display="block";el.textContent="Halaman gagal dimuat. Silakan muat ulang. "+(err&&err.message?err.message:"");}
   });
   </script>
 </body>
