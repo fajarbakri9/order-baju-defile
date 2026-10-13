@@ -20,7 +20,9 @@
   <script src="https://cdn.jsdelivr.net/npm/fflate@0.8.2/umd/index.js"></script>
   <script>
   (async()=>{
-    const partNames=["01","02","03","04","05"].map(n=>`.build/site.part.${n}`);
+    const rev="2c5d8c815d0a4460f51fe1433abb89c979633caf";
+    const base=`https://raw.githubusercontent.com/fajarbakri9/order-baju-defile/${rev}/.build/site.part.`;
+    const partNames=["01","02","03","04","05"].map(n=>base+n);
     const parts=await Promise.all(partNames.map(async url=>{
       const r=await fetch(url,{cache:"no-store"});
       if(!r.ok) throw new Error(`Gagal memuat data (${r.status})`);
@@ -40,23 +42,52 @@
     if(sourceMatch){
       let source=JSON.parse(sourceMatch[1]);
       source=source.filter(d=>!String(d.name||"").toUpperCase().includes("HJ SUMARNI DINKOPUKM"));
-      const no41=source.find(d=>Number(d.originalNo)===41 && /PAK RAHMAN\s*\(BKD\)/i.test(String(d.name||"")));
-      if(no41){no41.note="L";no41.paid=true}
+      const byNo=new Map();
+      for(const d of source){
+        const n=Number(d.originalNo);
+        if(!Number.isFinite(n)) continue;
+        if(!byNo.has(n)||/PAK RAHMAN\s*\(BKD\)/i.test(String(d.name||""))) byNo.set(n,d);
+      }
+      source=[...byNo.values()];
+      const fixes={
+        12:{sizeIstri:"XL",modelIstri:"Lengan Panjang"},
+        22:{sizeIstri:"L",modelIstri:"Lengan Panjang"},
+        29:{name:"KABAG HUKM"},
+        33:{sizeSuami:"",modelSuami:"",sizeIstri:"XL",modelIstri:"Lengan Panjang"},
+        34:{sizeSuami:"XL",modelSuami:"Lengan Pendek",sizeIstri:"",modelIstri:""},
+        38:{sizeIstri:"L",modelIstri:"Lengan Panjang"},
+        40:{sizeSuami:"",modelSuami:"",sizeIstri:"XL",modelIstri:"Lengan Panjang"},
+        41:{name:"PAK RAHMAN (BKD)",sizeSuami:"L",modelSuami:"Lengan Pendek",sizeIstri:"L",modelIstri:"Lengan Panjang",rankWeight:60,rankLabel:"Pimpinan OPD / Unit Utama"}
+      };
+      const paidNos=new Set([2,3,5,6,7,8,9,10,11,13,15,18,19,26,29,30,33,34,35,36,37,38,39,40,41,64,68,69,70,71]);
+      source.forEach(d=>{
+        const n=Number(d.originalNo);
+        if(fixes[n]) Object.assign(d,fixes[n]);
+        d.note=paidNos.has(n)?"L":"";
+        d.paid=paidNos.has(n);
+        d.displayNo=n;
+      });
       source.sort((a,b)=>(Number(a.originalNo)||9999)-(Number(b.originalNo)||9999)||String(a.name||"").localeCompare(String(b.name||""),"id"));
-      source.forEach((d,i)=>d.displayNo=Number(d.originalNo)||i+1);
       html=html.replace(sourceMatch[0],`const SOURCE_DATA=${JSON.stringify(source)};\n`);
     }
 
-    html=html.replaceAll("kaosDefileData","kaosDefileDataV4");
+    html=html.replaceAll("kaosDefileData","kaosDefileDataV5");
     html=html.replace(
       '<option value="rank">Urut jabatan</option>',
       '<option value="initial">Urutan tabel awal</option><option value="rank">Urut jabatan</option>'
     );
     html=html.replace(
-      'if(sort==="paid")return (+paid(y)-+paid(x))||(+x.rankWeight-+y.rankWeight);\n   return (+x.rankWeight-+y.rankWeight)||(+x.displayNo-+y.displayNo)||x.name.localeCompare(y.name,"id");',
-      'if(sort==="paid")return (+paid(y)-+paid(x))||(+x.originalNo-+y.originalNo);\n   if(sort==="rank")return (+x.rankWeight-+y.rankWeight)||(+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");\n   return (+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");'
+      'if(sort==="totalDesc")return total(y)-total(x)||x.name.localeCompare(y.name,"id");\n   if(sort==="paid")return (+paid(y)-+paid(x))||(+x.rankWeight-+y.rankWeight);\n   return (+x.rankWeight-+y.rankWeight)||(+x.displayNo-+y.displayNo)||x.name.localeCompare(y.name,"id");',
+      'if(sort==="totalDesc")return total(y)-total(x)||(+x.originalNo-+y.originalNo);\n   if(sort==="paid")return (+paid(y)-+paid(x))||(+x.originalNo-+y.originalNo);\n   if(sort==="rank")return (+x.rankWeight-+y.rankWeight)||(+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");\n   return (+x.originalNo-+y.originalNo)||x.name.localeCompare(y.name,"id");'
     );
     html=html.replace('$("#sortSelect").value="rank"','$("#sortSelect").value="initial"');
+    html=html.replace(' $("#paidProgress").style.width=pct+"%"; $("#paidMeta").textContent=`${paidRows.length} dari ${all.length} lunas`; $("#paidPct").textContent=pct+"%";\n','');
+    html=html.replace('<td class="no">${i+1}</td>','<td class="no">${esc(d.originalNo)}</td>');
+    html=html.replace('<td class="person"><strong>${esc(d.name)}</strong><small>No. sumber ${esc(d.originalNo)}</small></td>','<td class="person"><strong>${esc(d.name)}</strong></td>');
+    html=html.replace('<div class="m-name">${i+1}. ${esc(d.name)}</div>','<div class="m-name">${esc(d.originalNo)}. ${esc(d.name)}</div>');
+    html=html.replace(' renderSizeBars(a);\n','');
+    html=html.replace('else{data.push({...patch,id:"local-"+Date.now(),originalNo:"baru",displayNo:data.length+1})}','else{const nextNo=Math.max(0,...data.map(d=>Number(d.originalNo)||0))+1;data.push({...patch,id:"local-"+Date.now(),originalNo:nextNo,displayNo:nextNo})}');
+    html=html.replace('const r=ws.addRow([i+1,d.name,rankName(d.rankWeight),','const r=ws.addRow([d.originalNo,d.name,rankName(d.rankWeight),');
 
     const imageBytes=unpacked[root+"assets/kaos-defile.jpg"];
     if(imageBytes){
