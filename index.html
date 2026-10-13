@@ -112,8 +112,6 @@
       html=html.split("assets/kaos-defile.jpg").join("data:image/jpeg;base64,"+btoa(s));
     }
 
-    // Hindari literal </script> di dalam script loader karena browser akan menutup
-    // elemen script luar terlalu dini. Tag dibentuk saat runtime.
     const firebaseScripts = '<scr'+'ipt src="firebase-config.js"></scr'+'ipt>' +
                             '<scr'+'ipt src="cloud-sync.js"></scr'+'ipt>';
     html=html.replace("</body>", firebaseScripts + "</body>");
