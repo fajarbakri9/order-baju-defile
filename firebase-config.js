@@ -134,3 +134,13 @@ window.ORDER_FIREBASE_CONFIG = {
   `;
   document.head.appendChild(style);
 })();
+
+// Rekap produksi realtime: jumlah baju per ukuran dan jenis lengan.
+(() => {
+  if (document.getElementById('production-summary-script')) return;
+  const script = document.createElement('script');
+  script.id = 'production-summary-script';
+  script.src = 'production-summary.js?v=20261014-1';
+  script.async = false;
+  document.head.appendChild(script);
+})();
