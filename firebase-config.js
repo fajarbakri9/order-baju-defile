@@ -134,3 +134,17 @@ window.ORDER_FIREBASE_CONFIG = {
   `;
   document.head.appendChild(style);
 })();
+
+// Load realtime production summary and printer-ready Excel export after the main app is rendered.
+(() => {
+  const loadScript = (id, src) => {
+    if (document.getElementById(id)) return;
+    const script = document.createElement('script');
+    script.id = id;
+    script.src = src;
+    script.async = false;
+    document.head.appendChild(script);
+  };
+  loadScript('production-summary-script', 'production-summary.js?v=20261014-2');
+  loadScript('printer-export-script', 'printer-export.js?v=20261014-1');
+})();
